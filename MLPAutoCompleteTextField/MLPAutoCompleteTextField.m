@@ -437,9 +437,10 @@ withAutoCompleteString:(NSString *)string
         }
         
         [self.superview bringSubviewToFront:self];
-        UIView *rootView = [self.window.subviews objectAtIndex:0];
-        [rootView insertSubview:self.autoCompleteTableView
-                         belowSubview:self];
+//        UIView *rootView = [self.window.subviews objectAtIndex:0];
+//        [rootView insertSubview:self.autoCompleteTableView
+//                         belowSubview:self];
+        [self.window addSubview:self.autoCompleteTableView];
         [self.autoCompleteTableView setUserInteractionEnabled:YES];
         if(self.showTextFieldDropShadowWhenAutoCompleteTableIsOpen){
             [self.layer setShadowColor:[[UIColor blackColor] CGColor]];
@@ -794,7 +795,7 @@ withAutoCompleteString:(NSString *)string
     if (CGRectGetWidth(self.autoCompleteTableFrame) > 0){
         frame = self.autoCompleteTableFrame;
     } else {
-        frame = textField.frame;
+        frame = [textField.window convertRect:textField.frame fromView:textField.superview];
         frame.origin.y += textField.frame.size.height;
     }
     
