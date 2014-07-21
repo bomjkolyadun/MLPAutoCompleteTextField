@@ -67,6 +67,10 @@ static NSString *kDefaultAutoCompleteCellIdentifier = @"_DefaultAutoCompleteCell
 @property (assign) CGColorRef originalShadowColor;
 @property (assign) CGSize originalShadowOffset;
 @property (assign) CGFloat originalShadowOpacity;
+
+@property (nonatomic, assign) BOOL isAnimating;
+@property (nonatomic, assign) BOOL isClosing;
+
 @end
 
 
@@ -236,7 +240,7 @@ static NSString *kDefaultAutoCompleteCellIdentifier = @"_DefaultAutoCompleteCell
 
 + (NSString *) accessibilityLabelForIndexPath:(NSIndexPath *)indexPath
 {
-    return [NSString stringWithFormat:@"{%d,%d}",indexPath.section,indexPath.row];
+    return [NSString stringWithFormat:@"{%ld,%ld}",(long)indexPath.section,(long)indexPath.row];
 }
 
 - (void)configureCell:(UITableViewCell *)cell
@@ -422,12 +426,12 @@ withAutoCompleteString:(NSString *)string
 
 - (void)expandDropDownAutoCompleteTableForNumberOfRows:(NSInteger)numberOfRows
 {
-    [self resetDropDownAutoCompleteTableFrameForNumberOfRows:numberOfRows];
-    
-    
+    CGRect rect = [self autoCompleteTableFrameForNumberOfRows:numberOfRows];
+
     if(numberOfRows && (self.autoCompleteTableViewHidden == NO)){
-        [self.autoCompleteTableView setAlpha:1];
-        
+
+        if (_isAnimating) return;
+        self.isAnimating = YES;
         if(!self.autoCompleteTableView.superview){
             if([self.autoCompleteDelegate
                 respondsToSelector:@selector(autoCompleteTextField:willShowAutoCompleteTableView:)]){
@@ -435,19 +439,30 @@ withAutoCompleteString:(NSString *)string
                                    willShowAutoCompleteTableView:self.autoCompleteTableView];
             }
         }
-        
-        [self.superview bringSubviewToFront:self];
-//        UIView *rootView = [self.window.subviews objectAtIndex:0];
-//        [rootView insertSubview:self.autoCompleteTableView
-//                         belowSubview:self];
+
+         [self.superview bringSubviewToFront:self];
+        CGFloat animationDuration = (self.autoCompleteTableView.superview != nil ? 0.0 : 0.2f);
+        [self.autoCompleteTableView setAlpha:0];
+        [self.autoCompleteTableView setFrame:rect];
+        [self.autoCompleteTableView.layer setCornerRadius:self.autoCompleteTableCornerRadius];
         [self.window addSubview:self.autoCompleteTableView];
-        [self.autoCompleteTableView setUserInteractionEnabled:YES];
-        if(self.showTextFieldDropShadowWhenAutoCompleteTableIsOpen){
-            [self.layer setShadowColor:[[UIColor blackColor] CGColor]];
-            [self.layer setShadowOffset:CGSizeMake(0, 1)];
-            [self.layer setShadowOpacity:0.35];
-        }
-    } else {
+        [UIView animateWithDuration:animationDuration delay:0.0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
+            [self.autoCompleteTableView setAlpha:1];
+
+        } completion:^(BOOL finished) {
+            [self.autoCompleteTableView setUserInteractionEnabled:YES];
+            if(self.showTextFieldDropShadowWhenAutoCompleteTableIsOpen){
+                [self.layer setShadowColor:[[UIColor blackColor] CGColor]];
+                [self.layer setShadowOffset:CGSizeMake(0, 1)];
+                [self.layer setShadowOpacity:0.35];
+            }
+            [self.autoCompleteTableView scrollRectToVisible:CGRectMake(0, 0, 1, 1) animated:NO];
+            self.isAnimating = NO;
+        }];
+
+    }
+    else
+    {
         [self closeAutoCompleteTableView];
         [self restoreOriginalShadowProperties];
         [self.autoCompleteTableView.layer setShadowOpacity:0.0];
@@ -457,7 +472,15 @@ withAutoCompleteString:(NSString *)string
 
 - (void)closeAutoCompleteTableView
 {
-    [self.autoCompleteTableView removeFromSuperview];
+    if (_isClosing) return;
+    self.isClosing = YES;
+    [UIView animateWithDuration:0.2 delay:0.0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
+        self.autoCompleteTableView.alpha = 0.f;
+    } completion:^(BOOL finished) {
+        [self.autoCompleteTableView removeFromSuperview];
+        self.isClosing = NO;
+    }];
+
     [self restoreOriginalShadowProperties];
 }
 
@@ -506,7 +529,9 @@ withAutoCompleteString:(NSString *)string
 
 - (void)setAutoCompleteTableForDropDownAppearance
 {
-    [self resetDropDownAutoCompleteTableFrameForNumberOfRows:self.maximumNumberOfAutoCompleteRows];
+    CGRect rect = [self autoCompleteTableFrameForNumberOfRows:self.maximumNumberOfAutoCompleteRows];
+    [self.autoCompleteTableView setFrame:rect];
+
     [self.autoCompleteTableView setContentInset:self.autoCompleteContentInsets];
     [self.autoCompleteTableView setScrollIndicatorInsets:self.autoCompleteScrollIndicatorInsets];
     [self setInputAccessoryView:nil];
@@ -560,14 +585,11 @@ withAutoCompleteString:(NSString *)string
     [self.autoCompleteTableView scrollRectToVisible:CGRectMake(0, 0, 1, 1) animated:NO];
 }
 
-- (void)resetDropDownAutoCompleteTableFrameForNumberOfRows:(NSInteger)numberOfRows
+- (CGRect)autoCompleteTableFrameForNumberOfRows:(NSInteger)numberOfRows
 {
-    [self.autoCompleteTableView.layer setCornerRadius:self.autoCompleteTableCornerRadius];
-    
     CGRect newAutoCompleteTableViewFrame = [self autoCompleteTableViewFrameForTextField:self forNumberOfRows:numberOfRows];
-    
-    [self.autoCompleteTableView setFrame:newAutoCompleteTableViewFrame];
-    [self.autoCompleteTableView scrollRectToVisible:CGRectMake(0, 0, 1, 1) animated:NO];
+    return newAutoCompleteTableViewFrame;
+
 }
 
 - (void)registerAutoCompleteCellNib:(UINib *)nib forCellReuseIdentifier:(NSString *)reuseIdentifier
