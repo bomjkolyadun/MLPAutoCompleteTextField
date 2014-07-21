@@ -440,14 +440,16 @@ withAutoCompleteString:(NSString *)string
             }
         }
 
-         [self.superview bringSubviewToFront:self];
-        CGFloat animationDuration = (self.autoCompleteTableView.superview != nil ? 0.0 : 0.2f);
-        [self.autoCompleteTableView setAlpha:0];
-        [self.autoCompleteTableView setFrame:rect];
+        [self.superview bringSubviewToFront:self];
+        if (self.autoCompleteTableView.superview == nil)
+        {
+            [self.autoCompleteTableView setAlpha:0];
+        }
         [self.autoCompleteTableView.layer setCornerRadius:self.autoCompleteTableCornerRadius];
         [self.window addSubview:self.autoCompleteTableView];
-        [UIView animateWithDuration:animationDuration delay:0.0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
+        [UIView animateWithDuration:0.2 delay:0.0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
             [self.autoCompleteTableView setAlpha:1];
+            [self.autoCompleteTableView setFrame:rect];
 
         } completion:^(BOOL finished) {
             [self.autoCompleteTableView setUserInteractionEnabled:YES];
@@ -577,10 +579,10 @@ withAutoCompleteString:(NSString *)string
 - (void)resetKeyboardAutoCompleteTableFrameForNumberOfRows:(NSInteger)numberOfRows
 {
     [self.autoCompleteTableView.layer setCornerRadius:0];
-    
-    CGRect newAutoCompleteTableViewFrame = [self autoCompleteTableViewFrameForTextField:self forNumberOfRows:numberOfRows];
+
+    CGRect newAutoCompleteTableViewFrame = [self autoCompleteTableViewFrameForTextField:self forNumberOfRows:(numberOfRows > 0 ? 1 : numberOfRows)];
     [self.autoCompleteTableView setFrame:newAutoCompleteTableViewFrame];
-    
+
     [self.autoCompleteTableView setAutoresizingMask:UIViewAutoresizingFlexibleWidth];
     [self.autoCompleteTableView scrollRectToVisible:CGRectMake(0, 0, 1, 1) animated:NO];
 }
@@ -780,7 +782,7 @@ withAutoCompleteString:(NSString *)string
                                  forNumberOfRows:(NSInteger)numberOfRows
 {
     CGRect newTableViewFrame             = [self autoCompleteTableViewFrameForTextField:textField];
-    UIView *rootView                     = [textField.window.subviews objectAtIndex:0];
+    UIView *rootView                     = textField.window;
     CGRect textFieldFrameInContainerView = [rootView convertRect:textField.bounds
                                                         fromView:textField];
     CGFloat top    = textFieldFrameInContainerView.origin.y + textField.frame.size.height;
